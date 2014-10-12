@@ -3,7 +3,65 @@
 ## README
 #
 # Script for making automated readme files
+# With as less as possible effort you can create a readme file
+# of your source code
 #
+#	USAGE:
+#		Script reads input given in <n> files and creates a readme files for them
+#		[[c]]Usage: ./readme.py [options] <file1> [file2, file3, ...][[/c]]
+#		ARGUMENTS:
+#			without [[c]]-d[[/c]] and with more than one files given
+#			will every file overwrite the previous readme
+#			so the result will be only readme file of the last one
+#		OPTIONS:
+#			[[c]]-d[[/c]]
+#			running with -d on script named "script.sh" will produce
+#			a new directory "script" and place a readme file there
+#			also a copy of a script will be present in that directory
+#			[[c]]--cpp|--bash|--windows|--assembler[[/c]]
+#			is for selecting a comment style used in your source code
+#			if none of those is given, script will try to guess the comment
+#			style himself
+#			[[c]]--html|--txt[[/c]]
+#			output formats, the produced file will be named as
+#			[[c]]README.<format>[[/c]]
+#			EXAMPLES:
+#				[[c]]./readme.py -d script.py[[/c]]
+#				[[c]]./readme.py --txt --cpp CArray.cpp[[/c]]
+#
+#	README FORMAT:
+#		Writing a readme in your scripts is quite easy
+#		BASIC:
+#			For correct work of readme parser you need to do following:
+#			- readme comment needs to be in format specific for 
+#			programming language and after the first comment there has to 
+#			be a "README" word.
+#			[[c]]/** README[[/c]] or [[c]]## README[[/c]] or
+#			[[c]];; README[[/c]] or [[c]]:: README[[/c]]
+#			no rules aplies for the end comment
+#		SECTIONS:
+#			For using sections it is neccessary to keep a right indentation level of sections
+#			Traditional format for section name is [[c]][a-zA-Z0-9]+:[[/c]]
+#			EXAMPLE:
+#				|[[c]]USAGE:[[/c]]
+#				|	|[[c]]This text will be visible in section usage[[/c]]
+#				|	|[[c]]EXAMPLES:[[/c]]
+#				|	|	|[[c]]This text will be visible in section examples[[/c]]
+#				|	|[[c]]ANOTHER:[[/c]]
+#				|	|	|[[c]]Another text in other section[[/c]]
+#		ANNOTATIONS:
+#			For using annotations are defined some rules:
+#			- keep the indentations right
+#			- every annotation starts with @
+#			- annotations can be also attached to sections, just keep the indentation
+#			EXAMPLE:
+#				This will be visible in annotations
+#				[[c]]@author Jan novák[[/c]]
+#				[[c]]@year 2014[[/c]]
+#
+# @author Kryštof Tulinger
+# @year 2014
+# @place Norway
 
 import codecs
 import sys
@@ -13,37 +71,39 @@ import getopt
 import html
 
 class Template:
-	def __init__ ( self ):
-		pass
-	def sectionTemplate ( self ):
-		pass
-	def sectionsTemplate ( self ):
-		pass
-	def annotationsTemplate ( self ):
-		pass
-	def annotationLineTemplate ( self ):
-		pass
-	def textTemplate ( self ):
-		pass
-	def lineTemplate ( self ):
-		pass
-	def contentTemplate ( self ):
-		pass
-	def contentPartTemplate ( self ):
-		pass
-	def tocTemplate ( self ):
-		pass
-	def tocSectionTemplate ( self ):
-		pass
-	def tocSubsectionTemplate ( self ):
-		pass
-	def pageTemplate ( self ):
+	def __init__ ( self, options = {} ):
+		self . _output = options [ "output" ] if "output" in options . keys () else None
+		self . _filename = options [ "filename" ] if "filename" in options . keys () else "README.txt"
+	def open ( self, f ):
+		self . __del__ ()
+		if f == None:
+			self . solveCollisions ( self . _filename )
+			self . _output = codecs . open ( self . _filename, "w", encoding = "utf-8" )
+		elif isinstance ( f, type( str () ) ):
+			self . solveCollisions ( f )
+			self . _output = codecs . open ( f, "w", encoding = "utf-8" )
+		return self . _output
+	def __del__ ( self ):
+		if self . _output:
+			if hasattr ( self . _output, "closed" ) and not self . _output . closed:
+				self . _output . close ()
+
+	def solveCollisions ( self, filename ):
+		if os . path . isfile ( filename ):
+			try:
+				os . remove ( filename + "~" )
+			except:
+				pass
+			finally:
+				os . rename ( filename, filename + "~" )		
+
+	def render ( self, readmes, filename = None ):
 		pass
 
 
 class TXTTemplate ( Template ):
-	def __init__ ( self ):
-		Template . __init__ ( self )
+	def __init__ ( self, options = {} ):
+		Template . __init__ ( self, options )
 	def tocSection ( self, section, index = [ 1 ] ):
 		section_template = self . tocSectionTemplate ()
 		subsections_template = self . tocSubsectionTemplate ()
@@ -90,7 +150,7 @@ class TXTTemplate ( Template ):
  								    "text": text,
  								    "content": content,
  								    "annotations": annotations }
-	def render ( self, filename, readmes ):
+	def render ( self, readmes, filename = None ):
 		sections_template = self . sectionsTemplate ()
 		annotations_template = self . annotationsTemplate ()
 		annotation_line = self . annotationLineTemplate ()
@@ -130,14 +190,16 @@ class TXTTemplate ( Template ):
 		table_of_contents = table_of_contents_template % { "table_of_content": table_of_contents }
 		view = sections_template % { "sections" : view } if view else ""
 
-		with codecs . open ( filename, "w", encoding = "utf-8" ) as outputFile:
+		view = re . sub ( "\[\[(c|code)\]\]", "", view )
+		view = re . sub ( "\[\[/(c|code)\]\]", "", view )
+	
+		with self . open ( filename ) as outputFile:
 			
 			substitute = html % { "name": name,
 								  "table_of_contents" : table_of_contents,
 								  "header" : header, 
 								  "content": view, 
 								  "annotations" : annotations }
-
 			outputFile . write ( substitute )
 
 	def sectionsTemplate ( self ):
@@ -177,9 +239,9 @@ class TXTTemplate ( Template ):
 		return page_template
 
 class HTMLTemplate ( Template ):
-	def __init__ ( self ):
-		Template . __init__ ( self )
-
+	def __init__ ( self, options = {} ):
+		Template . __init__ ( self, options )
+		self . _filename = "README.html"
 	def tocSection ( self, section, index = [ 1 ] ):
 		section_template = self . tocSectionTemplate ()
 		subsections_template = self . tocSubsectionTemplate ()
@@ -230,7 +292,7 @@ class HTMLTemplate ( Template ):
  								    "content": content,
  								    "annotations": annotations }
 
-	def render ( self, filename, readmes ):
+	def render ( self, readmes, filename = None ):
 
 		sections_template = self . sectionsTemplate ()
 		annotations_template = self . annotationsTemplate ()
@@ -271,7 +333,9 @@ class HTMLTemplate ( Template ):
 		table_of_contents = table_of_contents_template % { "table_of_content": table_of_contents }
 		view = sections_template % { "sections" : view } if view else ""
 
-		with codecs . open ( filename, "w", encoding = "utf-8" ) as outputFile:
+		view = re . sub ( "(?P<begin>\[\[(c|code)\]\])(?P<content>.*?)(?P<end>\[\[/(c|code)\]\])", lambda x: "<code>" + x . group ( "content" ) + "</code>", view )
+
+		with self . open ( filename ) as outputFile:
 			
 			substitute = html % { "name": name,
 								  "table_of_contents" : table_of_contents,
@@ -384,6 +448,7 @@ class HTMLTemplate ( Template ):
         </div>
         <div class="collapse navbar-collapse">
           <ul class="nav navbar-nav">
+            <li><a href="#description">Description</a></li>
             <li><a href="#toc">Table of content</a></li>
             <li><a href="#content">Content</a></li>
             <li><a href="#annotations">Annotations</a></li>
@@ -398,9 +463,17 @@ class HTMLTemplate ( Template ):
 		<h1>README %(name)s</h1>
 			<div class="page">
 				<div class="content">
-					<span class="lead">
-						%(header)s
-					</span>
+					<div class="panel panel-default" id="description">
+						<div class="panel-heading">
+							<h3>Description</h3>
+						</div>
+						<div class="panel-body">
+							<span class="lead">
+								%(header)s
+							</span>
+						</div>
+					</div>				
+
 					<hr />
 					<div class="panel panel-default" id="toc">
 						<div class="panel-heading">
@@ -453,7 +526,7 @@ class Comment:
 		self . _readme_comment_end = options [ "readme_comment_end" ] if "readme_comment_end" in options . keys () else ""
 		self . _comment = options [ "comment" ] if "comment" in options . keys () else "(#|[" + self . blank () + "]*#)"
 		self . _separate_lines = options [ "separate_lines" ] if "separate_lines" in options . keys () else "([" + self . blank () + "]*[-]+[" + self . blank () + "]*$|[" + self . blank () + "]*[#]+[" + self . blank () + "]*$|[" + self . blank () + "]*[*]+[" + self . blank () + "]*$|[" + self . blank () + "]*[_]+[" + self . blank () + "]*$|[" + self . blank () + "]*[+]+[" + self . blank () + "]*$)"
-		self . _section = options [ "section" ] if "section" in options . keys () else "[A-Z0-9]+:"
+		self . _section = options [ "section" ] if "section" in options . keys () else "[a-zA-Z0-9]+:"
 
 	def begin ( self ):
 		return self . _readme_comment_begin
@@ -464,7 +537,7 @@ class Comment:
 	def blankLine ( self ):
 		return self . _separate_lines
 	def blank ( self ):
-		return " \t"
+		return " "
 	def section ( self ):
 		return self . _section
 
@@ -491,6 +564,18 @@ class Section:
 
 		string = "\n".join ( s [ 1: ] )
 
+		#print ( "----- section ------" )
+		#print ( string )
+
+
+		string = re . sub ( "(?m)^[ ]{0,4}", "", string )
+
+		#print ( "----- section modified ------" )
+		#print ( string )
+
+		#print ( "----- section updated ------" )
+		#print ( string )
+
 		self . subsections ( string )
 		self . text ( string )
 		self . annotations ( string )
@@ -501,7 +586,8 @@ class Section:
 	def subsections ( self, string = None ):
 		if not string:
 			return self . _sections
-		pattern = "(?m)^[" + self . _comment . blank () + "]{" + repr ( self . _depth * 4 ) + "}" + self . _comment . section () + "[" + self . _comment . blank () + "]*[\n](^[" + self . _comment . blank () + "]{" + repr ( self . _depth * 4 + 1 ) + ",}.*[\n])*"
+
+		pattern = "(?m)^" + self . _comment . section () + "[" + self . _comment . blank () + "]*[\n](^[ ]{1,}.*[\n])*"
 		sections = re . finditer ( pattern, string )
 		for section in sections:
 			section = section . group ()
@@ -510,7 +596,7 @@ class Section:
 	def text ( self, string = None ):
 		if not string:
 			return self . _lines
-		pattern = "(?m)^[" + self . _comment . blank () + "]{" + repr ( self . _depth * 4 ) + "}[^" + self . _comment . blank () +"@][^A-Z].*"
+		pattern = "(?m)^(?!" + self . _comment . section () + ")[^@\s][^A-Z].*"
 		text = re . finditer ( pattern, string )
 		for t in text:
 			t = t . group ()
@@ -523,14 +609,13 @@ class Section:
 	def annotations ( self, string = None ):
 		if not string:
 			return self . _annotations
-		ann = re . finditer ( "(?m)^[" + self . _comment . blank () + "]{" + repr ( self . _depth * 4 ) + "}@[a-zA-Z0-9]+[" + self . _comment . blank () + "].*", string )
+		
+		ann = re . finditer ( "(?m)^@[a-zA-Z0-9]+[" + self . _comment . blank () + "].*", string )
 
 		for annotation in ann:
-			#print ( "..." )
-			#print ( annotation . group () )
-			if re . match ( "(?m)^[" + self . _comment . blank () + "]{" + repr ( self . _depth * 4 ) + "}@[a-zA-Z0-9]+[" + self . _comment . blank () + "]+.*?", annotation . group () ):
-				key = re . sub ( "(?m)^[" + self . _comment . blank () + "]{" + repr ( self . _depth * 4 ) + "}@(?P<key>[a-zA-Z0-9]+).*", lambda m: m . group ("key"), annotation.group() )
-				val = re . sub ( "(?m)^[" + self . _comment . blank () + "]{" + repr ( self . _depth * 4 ) + "}@[a-zA-Z0-9]+[" + self . _comment . blank () + "]+(?P<val>.*?)", lambda m: m . group ("val"), annotation.group() )
+			if re . match ( "(?m)^@[a-zA-Z0-9]+[" + self . _comment . blank () + "]+.*?", annotation . group () ):
+				key = re . sub ( "(?m)^@(?P<key>[a-zA-Z0-9]+).*", lambda m: m . group ("key"), annotation.group() )
+				val = re . sub ( "(?m)^@[a-zA-Z0-9]+[" + self . _comment . blank () + "]+(?P<val>.*?)", lambda m: m . group ("val"), annotation.group() )
 				self . _annotations . append ( { key: val } )
 		return self . _annotations
 
@@ -540,14 +625,24 @@ class Section:
 
 
 class Readme:
-	def __init__ ( self, name, string, comment ):
+	def __init__ ( self, name, string, comment, delimiter = " " ):
 
 		self . _comment = comment
 		self . _name = name
+		self . _delimiter = delimiter
 
 		self . _lines = []
 		self . _section = []
 		self . _annotations = []
+
+		#print ( "------------- readme -------------- " )
+		#print ( string )
+
+		string = re . sub ( "(?m)^" + re . escape ( delimiter ), "", string )
+
+		#print ( "------------- readme modified -------------- " )
+		#print ( string )
+
 
 		self . text ( string )
 		self . sections ( string )
@@ -561,8 +656,10 @@ class Readme:
 			return self . _section
 		s = []
 		# untext
-		string = re . sub ( "^[ ][@][^A-Z0-9].*", "", string )
-		pattern = "(?m)^[ ][A-Z0-9]+:([\n]|.)*?(?=^[ ][A-Z0-9]+:|\Z)"
+		string = re . sub ( "(?m)^[@][^A-Z0-9].*", "", string )
+		string = re . sub ( "(?m)^(?!" + self . _comment . section () + ")[^@\s][^A-Z].*", "", string )
+		pattern = "(?m)^" + self . _comment . section () + "([\n]|.)*?(?=^" + self . _comment . section () + "|\Z)"
+		#pattern = "[^\s]*.*\n(?:\s+.*\n*)*"
 		sections = re . finditer ( pattern, string )
 		for section in sections:
 			section = section . group ()
@@ -574,11 +671,11 @@ class Readme:
 		if not string:
 			return self . _annotations
 		annotations = []
-		ann = re . finditer ( "(?m)^[ ]{1}@[a-zA-Z0-9]+[" + self . _comment . blank () + "].*", string )
+		ann = re . finditer ( "(?m)^@[a-zA-Z0-9]+[" + self . _comment . blank () + "].*", string )
 		for annotation in ann:
-			if re . match ( "(?m)^[ ]{1}@[a-zA-Z0-9]+[" + self . _comment . blank () + "]+.*?", annotation . group () ):
-				key = re . sub ( "(?m)^[ ]{1}@(?P<key>[a-zA-Z0-9]+).*", lambda m: m . group ("key"), annotation.group() )
-				val = re . sub ( "(?m)^[ ]{1}@[a-zA-Z0-9]+[" + self . _comment . blank () + "]+(?P<val>.*?)", lambda m: m . group ("val"), annotation.group() )
+			if re . match ( "(?m)^@[a-zA-Z0-9]+[" + self . _comment . blank () + "]+.*?", annotation . group () ):
+				key = re . sub ( "(?m)^@(?P<key>[a-zA-Z0-9]+).*", lambda m: m . group ("key"), annotation.group() )
+				val = re . sub ( "(?m)^@[a-zA-Z0-9]+[" + self . _comment . blank () + "]+(?P<val>.*?)", lambda m: m . group ("val"), annotation.group() )
 				annotations . append ( { key: val } )
 		self . _annotations = annotations
 		return annotations
@@ -586,7 +683,7 @@ class Readme:
 	def text ( self, string = None ):
 		if not string:
 			return self . _lines
-		pattern = "(?m)^[ ][^" + self . _comment . blank () + "@][^A-Z].*"
+		pattern = "(?m)^(?!" + self . _comment . section () + ")[^@\s][^A-Z].*"
 		text = re . finditer ( pattern, string )
 		lines = []
 		for t in text:
@@ -601,38 +698,23 @@ class Readme:
 class Readme1:
 	def __init__ ( self, options = {} ):
 
-		self . _output_file = options [ "output_file" ] if "output_file" in options . keys () else "README.txt"
 		self . _comment = options [ "comment" ] if "comment" in options . keys () else Comment ()
+		self . _template = options [ "template" ] if "template" in options . keys () else HTMLTemplate ()
 		self . _options = options
 
 		self . _readmes = []
 
-		self . _template = HTMLTemplate ()
-
-
 
 
 	def readme ( self, filename ):
-		sections_template = self . _template . sectionsTemplate ()
-		annotations_template = self . _template . annotationsTemplate ()
-		annotation_line = self . _template . annotationLineTemplate ()
-		table_of_contents_template = self . _template . tocTemplate ()
-		text_template = self . _template . textTemplate ()
-		line_template = self . _template . lineTemplate ()
-		html = self . _template . pageTemplate ()
-
-		header = ""
-		table_of_contents = ""
-		view = ""
-		annotations = ""
-		annotation_lines = ""
-
-
+		self . _readmes = []
 		with codecs . open ( filename, "r", encoding = "utf-8" ) as inputFile:
 			content = inputFile . read ()
 			content = re . sub ( "\r", "\n", content )
 			content = re . sub ( "\n\n", "\n", content )
-			content = re . sub ( "\t", "    ", content )
+			#content = re . sub ( "\t", "    ", content )
+			#print ( re . sub ( "\t", "    ", content ) )
+			
 			if self . _comment . end ():
 				#/\*\* README[\n](.*[\n])*[ \t]*\*/
 				pattern = "" + self . _comment . begin () + "[\n](.*[\n])*" + self . _comment . blank () + "*" + self . _comment . end ()
@@ -641,7 +723,6 @@ class Readme1:
 			#print ( pattern )
 			readmes = re . finditer ( pattern, content )
 			readmes = list ( readmes )
-
 			if len ( readmes ) <= 0:
 				"""error"""
 				readmes = self . suggest ( content )
@@ -655,17 +736,29 @@ class Readme1:
 			for readme in readmes:
 				readme = readme . group ()
 				readme = re . sub ( self . _comment . begin () + "\s", "", readme )
-				
 				if self . _comment . end ():
 					readme = re . sub ( "\s" + self . _comment . end (), "", readme )
+
 				
-				readme = re . sub ( "(?m)" + self . _comment . comment (), "", readme )
+				readme = re . sub ( "(?m)^" + self . _comment . comment (), "", readme )
+				#readme = re . sub ( "(?m)^\t", "\t\t", readme )
+				c = self . _comment . comment ()
+				readme = re . sub ( "(?m)^(?P<s>[ ]+)", lambda x: "\t" * ( int ( len ( x . group ( "s" ) ) / 4 ) + 1 ), readme )
+				readme = readme . expandtabs (4)
 
 
-				self . _readmes . append ( Readme ( filename, readme, self . _comment ) )
+				x = re . finditer ( "(?m)^([ ]+?)(?=[^ ])", readme )
+				delimiter = list ( x )
+				if len ( delimiter ) <= 0:
+					delimiter = " "
+				else:
+					delimiter =  delimiter[ 0 ] . group ( 1 )
 
 
-		self . _template . render ( "README.html", self . _readmes )
+
+				self . _readmes . append ( Readme ( filename, readme, self . _comment, delimiter ) )
+
+		self . _template . render ( self . _readmes )
 
 
 
@@ -701,19 +794,40 @@ class Readme1:
 
 def main ( argv = None ):
 
+	def cp(source, dest, buffer_size=1024*1024):
+	    """
+	    Copy a file from source to dest. source and dest
+	    can either be strings or any object with a read or
+	    write method, like StringIO for example.
+	    """
+	    if not hasattr(source, 'read'):
+	        source = open(source, 'rb')
+	    if not hasattr(dest, 'write'):
+	        dest = open(dest, 'wb')
+
+	    while 1:
+	        copy_buffer = source.read(buffer_size)
+	        if copy_buffer:
+	            dest.write(copy_buffer)
+	        else:
+	            break
+
+	    source.close()
+	    dest.close()
+
 	def usage ():
 		print ( "Usage: " + sys.argv[0] + " [options]" )
 		print ( "" )
 		print ( "Options:" )
-		print ( "	--help|-h			show this help message and exit" )
-		print ( "	--input|-i <dir>		set the input file/directory" )
-		print ( "	--output|-o <dir|file>		set the output directory, default is the same as input" )
-		print ( "	--language|-l <lang>		set the language" )
-		print ( "	--merge|-m			set if the thread files should be merged after complete run" )
-		print ( "	--delete-after-merge		set if thread files should be deleted after complete run" )
-		print ( "	--name|-n <name>		set the subdirectory of output directory where the results will be stored; %(lang)s can be used" )
-		print ( "	--threads|-t <number>		number of threads" )
-		print ( "	--number-of-links <number>	number of links processed by thread in a loop" )
+		print ( "	-h		show this help message and exit" )
+		print ( "	-o <filename>	set the output file, \"-\" stands for stdout" )
+		print ( "	-d		program will create a subdirectory and place readme and copy of the script there" )
+		print ( "	--cpp		style of comments" )
+		print ( "	--bash		style of comments" )
+		print ( "	--assember	style of comments" )
+		print ( "	--windows	style of comments" )
+		print ( "	--html		output format" )
+		print ( "	--txt		output format" )
 		print ( "" )
 		print ( "Examples:" )
 		print ( "	script.py --input ..\\languages\\nowiki\\ -t 8 --merge -c 500 -l nn" )
@@ -724,17 +838,29 @@ def main ( argv = None ):
 		argv = sys . argv
 
 	options = {}
-	threads = 5
-	input = []
-	lang = None
+	directories = False
+	output_file = None
+
+	comments = {}
+	comments [ "cpp" ] = Comment ( { "readme_comment_begin": "/\*\* [rR][eE][aA][dD][mM][eE]",
+							  "readme_comment_end": "\*/",
+							  "comment": "(^[ \t]*\*)" } )
+	comments [ "bash" ] = Comment ()
+	comments [ "windows"] = Comment ( { "readme_comment_begin": ";; [rR][eE][aA][dD][mM][eE]",
+								 "comment": "(;|[ \t]*;)" } )
+	comments [ "assember" ] = Comment ( { "readme_comment_begin": ":: [rR][eE][aA][dD][mM][eE]",
+								   "comment": "(::|[ \t]*::)" } )
+
+	templates = {}
+	templates [ "html" ] = HTMLTemplate ()
+	templates [ "txt" ] = TXTTemplate ()
 
 	if argv is None:
 		argv = sys.argv
 	try:
 		opts, args = getopt.getopt(
-			argv[1:], "hvl:o:i:mdn:t:c:", [
-				"help", "language=", "input=", "output=",
-				"merge", "delete-after-merge", "name=", "threads=" "number-of-links=" ])
+			argv[1:], "ho:d", [
+				"help", "cpp", "bash", "assembler", "windows", "html", "txt" ])
 	except getopt.GetoptError:
 		usage ()
 		return 0
@@ -742,40 +868,65 @@ def main ( argv = None ):
 		if opt in ('-h', '--help'):
 			usage ()
 			return 0
-		elif opt in ("--language", "-l"):
-			lang = str ( arg )
-		elif opt in ("--input", "-i"):
-			input = arg
-		elif opt in ("--output", "-o"):
-			options [ "output_path_directory" ] = arg
-		elif opt in ("--name", "-n"):
-			options [ "output_path" ] = arg
-		elif opt in ("--merge", "-m"):
-			options [ "merge" ] = True
-		elif opt in ("--delete-after-merge", "-d"):
-			options [ "delete_after_merge" ] = True
-		elif opt in ("--number-of-links", "-c"):
-			options [ "number_of_links" ] = int ( arg )
-		elif opt in ("--threads", "-t"):
-			threads = int ( arg )
+		elif opt == "-o":
+			output_file = arg
+		elif opt == "--cpp":
+			options [ "comment" ] = comments [ "cpp" ]
+		elif opt == "--bash":
+			options [ "comment" ] = comments [ "bash" ]
+		elif opt == "--assembler":
+			options [ "comment" ] = comments [ "assembler" ]
+		elif opt == "--windows":
+			options [ "comment" ] = comments [ "windows" ]
+		elif opt == "--html":
+			options [ "template" ] = templates [ "html" ]
+		elif opt == "--txt":
+			options [ "template" ] = templates [ "txt" ]
 		elif opt == "-v":
 			options [ "verbose" ] = True
+		elif opt == "-d":
+			directories = True
 		else:
 			assert False, "Fatal error. Bad option."
+
+	r = Readme1 ( options )
+
+
+	if len ( args ) <= 0:
+		assert False, "Fatal error. No input given."
+
+	for arg in args:
+		if directories:
+			delim = "\\"
+			if sys . platform . startswith ( 'linux' ):
+				delim= "/"
+			if arg . rfind ( delim ) >= 0:
+				f = arg [ arg . rfind ( delim ): ]
+			else:
+				f = arg
+			d = arg [ :arg . rfind ( "." )]
+			d = re . sub ( "(\.|[ ])", "_", d )
+			try:
+				os . makedirs ( d )
+			except:
+				#print ( "Fatal error. Not able to create directory " + repr ( d ) )
+				pass
+
+			cw = os . getcwd ()
+			os . chdir ( d )
+			r . readme ( cw + delim + f )
+			os . chdir ( cw )
+			
+			cp ( f, d + delim + f )
+		else:
+			r . readme ( arg )
+
+
 
 
 
 	return 0
 
 if __name__ == "__main__":
-	
-	#options = { "readme_comment_begin": "/\*\* README",
-	#			"readme_comment_end": "\*/",
-	#			"comment": "(^[ \t]*\*)" }
-	#c = Comment ( options )			
-	#d = Readme1 ( { "comment": c } )
-	d = Readme1 ()
-	#d . readme ( "download.py" )
-	d . readme ( "CArray.h" )
 
 	sys.exit(main())
